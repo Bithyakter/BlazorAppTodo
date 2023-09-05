@@ -1,0 +1,51 @@
+﻿@page "/countryList"
+@using BlazorAppTodo.Shared
+
+@inject HttpClient _httpClient
+
+<h1>Country List</h1>
+<div>
+    <a href="/addcountry" class="btn btn-primary"> Create New Country</a>
+
+    @if (countryList != null)
+    {
+        <table class="table mt-3">
+            <thead>
+                <tr>
+                    <th width = "30%">Country name</th>
+                    <th width = "20%">Country code</th>
+                    <th width = "20%">ISO Code Alpha2</th>
+                    <th width = "30%">Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+               @foreach (var p in countryList)
+               {
+                    <tr>
+                        <td>
+                            @p.CountryName
+                        </td>
+                    <td>@p.CountryCode</td>
+                    <td>@p.ISOCodeAlpha2</td>
+                    <td>
+                        <a href="/editcountry/@p.Id" class="btn btn-info">Edit</a> |
+                        <a href="/deletecountry/@p.Id" class="btn btn-danger">Delete</a>
+                    </td>
+                    </tr>
+               }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+   List<CountryViewModel> countryList = new List<CountryViewModel>();
+
+   protected override async Task OnInitializedAsync()
+    {
+        var response = await _httpClient.GetAsync("api/country");
+        response.EnsureSuccessStatusCode();
+        countryList = await response.Content.ReadFromJsonAsync<List<CountryViewModel>>();
+   }
+}
