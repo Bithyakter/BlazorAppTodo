@@ -1,51 +1,128 @@
 ﻿@page "/countryList"
 @using BlazorAppTodo.Shared
+@inject HttpClient Http
+@inject IJSRuntime js
+@inject NavigationManager NavigationManager
 
-@inject HttpClient _httpClient
+@*@inject HttpClient _httpClient*@
 
 <h1>Country List</h1>
 <div>
-    <a href="/addcountry" class="btn btn-primary"> Create New Country</a>
+   @*<a href="/addcountry" class="btn btn-primary">  <i class="fas fa-user-plus"></i> Create Country</a>*@
 
-    @if (countryList != null)
-    {
-        <table class="table mt-3">
-            <thead>
-                <tr>
-                    <th width = "30%">Country name</th>
-                    <th width = "20%">Country code</th>
-                    <th width = "20%">ISO Code Alpha2</th>
-                    <th width = "30%">Action</th>
-                </tr>
-            </thead>
+   <div class="row">
+      <div class="col-md-8">
+         <a href="/addcountry" class="btn btn-primary" role="button">
+            <i class="fas fa-user-plus"></i>
+            Create new country
+         </a>
+      </div>
 
-            <tbody>
-               @foreach (var p in countryList)
-               {
-                    <tr>
-                        <td>
-                            @p.CountryName
-                        </td>
-                    <td>@p.CountryCode</td>
-                    <td>@p.ISOCodeAlpha2</td>
-                    <td>
-                        <a href="/editcountry/@p.Id" class="btn btn-info">Edit</a> |
-                        <a href="/deletecountry/@p.Id" class="btn btn-danger">Delete</a>
-                    </td>
-                    </tr>
-               }
-            </tbody>
-        </table>
-    }
+      <div class="input-group col">
+         <input type="text" class="form-control" placeholder="Search country by name"
+         @bind="SearchString" @bind:event="oninput" @onkeyup="FilterCountry" />
+         @if (SearchString.Length > 0)
+         {
+            <div class="input-group-append">
+               <button class="btn btn-danger" @onclick="ResetSearch">
+                  <i class="fas fa-times"></i>
+               </button>
+            </div>
+         }
+      </div>
+   </div>
+
+   @if (list != null)
+   {
+      <table class="table mt-3">
+         <thead>
+            <tr>
+               <th width="30%">Country name</th>
+               <th width="20%">Country code</th>
+               <th width="20%">ISO Code Alpha2</th>
+               <th width="30%">Action</th>
+            </tr>
+         </thead>
+
+         <tbody>
+            @foreach (var p in list)
+            {
+               <tr>
+                  <td>
+                     @p.CountryName
+                  </td>
+                  <td>@p.CountryCode</td>
+                  <td>@p.ISOCodeAlpha2</td>
+                  <td>
+                     <a href="/editcountry/@p.Id" class="btn btn-info">Edit</a> |
+                     @*<a href="/deletecountry/@p.Id" class="btn btn-danger">Delete</a>*@
+                     <button class="btn btn-danger" @onclick="@(() => Delete(p.Id))">Delete</button>
+                  </td>
+               </tr>
+            }
+         </tbody>
+      </table>
+   }
 </div>
 
 @code {
-   List<CountryViewModel> countryList = new List<CountryViewModel>();
+   protected List<CountryViewModel> list = new();
+   protected List<CountryViewModel> searchCountryData = new();
+   protected CountryViewModel countryViewModel = new();
+   protected string SearchString { get; set; } = string.Empty;
+
+   [Parameter]
+   public string Id { get; set; }
 
    protected override async Task OnInitializedAsync()
-    {
-        var response = await _httpClient.GetAsync("api/country");
-        response.EnsureSuccessStatusCode();
-        countryList = await response.Content.ReadFromJsonAsync<List<CountryViewModel>>();
+   {
+      await GetCountry();
    }
+
+   protected async Task GetCountry()
+   {
+      list = await Http.GetFromJsonAsync<List<CountryViewModel>>("api/Country");
+      searchCountryData = list;
+   }
+
+   protected void FilterCountry()
+   {
+      if (!string.IsNullOrEmpty(SearchString))
+      {
+         list = searchCountryData
+             .Where(x => x.CountryName.IndexOf(SearchString, StringComparison.OrdinalIgnoreCase) != -1)
+             .ToList();
+      }
+      else
+      {
+         list = searchCountryData;
+      }
+   }
+
+   public void ResetSearch()
+   {
+      SearchString = string.Empty;
+      list = searchCountryData;
+   }
+
+   async Task Delete(int id)
+   {
+      var country = list.First(x => x.Id == id);
+
+      if (await js.InvokeAsync<bool>("confirm", $"Do you want to delete {country.CountryName}'s ({country.Id}) Record?"))
+      {
+         await Http.DeleteAsync($"api/Country/{id}");
+         await OnInitializedAsync();
+      }
+   }
+
+   //List<CountryViewModel> countryList = new List<CountryViewModel>();
+
+   //protected override async Task OnInitializedAsync()
+   // {
+   //     var response = await _httpClient.GetAsync("api/country");
+   //     response.EnsureSuccessStatusCode();
+
+   //     countryList = await response.Content.ReadFromJsonAsync<List<CountryViewModel>>();
+   //}
 }
